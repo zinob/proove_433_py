@@ -6,7 +6,6 @@ Protocol by https://github.com/JoakimWesslen/Tx433
 import logging
 import time
 
-from RPi import GPIO
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -14,10 +13,12 @@ class Proove:
     """Control your proove device"""
 
     gpio = 4
-    tx_repeat = 4
+    tx_repeat = 1
 
-    tOneHigh = 250 #275
-    tOneLow = 250 #170
+    base_time = 250
+
+    tOneHigh = 250 
+    tOneLow = 250 
 
     tZeroHigh = 250
     tZeroLow = 1250
@@ -28,6 +29,7 @@ class Proove:
     tPauseHigh = 250
     tPauseLow = 10000
 
+    wave_buffer ="" 
     """
         Packet structure:
         Bit nbr:  Name:
@@ -56,7 +58,7 @@ class Proove:
     _off = "1"
     _channel = ["00", "01", "10", "11"]
     _switch = ["00", "01", "10", "11"]
-    _dim = [ #16 levels
+    _dim_level = [ #16 levels
         "0000"
         "0001",
         "0010",
@@ -75,14 +77,6 @@ class Proove:
         "1111"
     ]
 
-    def __init__(self, gpio):
-        self.gpio = gpio
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.gpio, GPIO.OUT)
-
-    def cleanup(self):
-        _LOGGER.debug("Cleanup")
-        GPIO.cleanup()
 
     def channel_on(self, switch_id):
         self._trigger(self._off, self._on, self._switch[switch_id])
@@ -105,6 +99,17 @@ class Proove:
         packet = self.encode(data)
         self.tx_packets(packet)
 
+    def _dim(self, group_state, switch_id, level):
+        assert 0 <= level <= 15, "Dim level needs to be between 0 and 15, inclusive"
+        data = self._transmitter_id
+        data += group_state
+        data += state_value
+        data += self._channel[0]
+        data += "11"
+        data += bin(level)[2:]
+        packet = self.encode(data)
+        self.tx_packets(packet)
+
     def encode(self, code):
         data = ""
         for byte in range(0, len(code)):
@@ -117,7 +122,7 @@ class Proove:
 
     def decode(self, packet):
         data = ""
-        for byte in range(0, len(packet)/2):
+        for byte in range(0, len(packet)//2):
             data += packet[byte*2]
         return data
 
@@ -151,9 +156,5 @@ class Proove:
         self.tx_waveform(self.tPauseHigh, self.tPauseLow)
 
     def tx_waveform(self, high_pulse, low_pulse):
-        GPIO.output(self.gpio, GPIO.HIGH)
-        time.sleep(high_pulse / 1000000.0)
-        GPIO.output(self.gpio, GPIO.LOW)
-        time.sleep(low_pulse / 1000000.0)
-
+        self.wave_buffer += "1"*(high_pulse//self.base_time)+"0"*(low_pulse//self.base_time)
 

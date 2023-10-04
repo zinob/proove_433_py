@@ -1,6 +1,7 @@
 import argparse
 import logging
 from proovepi import Proove
+from subprocess import run
 
 parser = argparse.ArgumentParser(description='Proove switch remote controll.')
 parser.add_argument("-p", "--gpio-pin", default=4, type=int, help="GPIO pin")
@@ -14,10 +15,10 @@ args = parser.parse_args()
 
 logging.basicConfig(level=logging.DEBUG)
 
-print args.off
-print args.group
+print(args.off)
+print(args.group)
 
-pr = Proove(args.gpio_pin)
+pr = Proove()
 if not args.off:
     if not args.group:
         pr.channel_on(args.id)
@@ -29,4 +30,6 @@ else:
     else:
         pr.group_off()
 
-pr.cleanup()
+args = [ "sendook", "-1", "250", "-0", "250",  pr.wave_buffer]
+
+run(args)
